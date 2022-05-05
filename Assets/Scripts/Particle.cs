@@ -4,7 +4,7 @@ public class Particle : MonoBehaviour
 {
     public Vector3 position;
     public Vector3 velocity;
-    public Vector3 force;
+    public Vector3 forces;
     public float density;
     public float pressure;
 

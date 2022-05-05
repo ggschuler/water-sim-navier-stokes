@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 
 public class SimulationSPH : MonoBehaviour
@@ -23,11 +24,17 @@ public class SimulationSPH : MonoBehaviour
     [SerializeField] private float gravityMult = 2000.0f;
     
     private Particle[] particles;
+    private ParticleCollider[] colliders;
+    [SerializeField] private List<GameObject> walls = new List<GameObject>();
+    
+    
     private static float kernelDistance = 16.0f;
     private float kD2 = kernelDistance * kernelDistance;
     private static readonly float POLY6 = 4.0f / (Mathf.PI * Mathf.Pow(kernelDistance, 8.0f));
-    private static readonly float SPIKY_GRAD = 0.0f;
-    private static readonly float VISC_LAP = 0.0f;
+    private static readonly float SPIKY_GRAD = -10.0f / (Mathf.PI * Mathf.Pow(kernelDistance, 5.0f));
+    private static readonly float VISC_LAP = 40.0f / (Mathf.PI * Mathf.Pow(kernelDistance, 5.0f));
+    private static readonly float TIMESTEP = 0.0007f;
+    private static readonly float BOUND_DAMP = -0.5f;
 
     private void Init()
     {
@@ -43,6 +50,7 @@ public class SimulationSPH : MonoBehaviour
             Particle currentParticle = currentGo.AddComponent<Particle>();
             
             particles[i] = currentParticle;
+            colliders[i] = currentGo.AddComponent<ParticleCollider>();
             currentGo.transform.localScale = Vector3.one * radius;
             currentGo.transform.position = new Vector3(x, y, z);
             currentParticle.go = currentGo;
@@ -50,15 +58,15 @@ public class SimulationSPH : MonoBehaviour
         }
     }
 
-    private void CalculateDensity()
+    private void CalculateDensityPressure()
     {
         foreach (Particle pI in particles)
         {
-            pI.pressure = 0.0f;
+            pI.density = 0.0f;
             foreach (Particle pJ in particles)
             {
                 Vector3 diff = pJ.position -pI.position;
-                float dist = diff.magnitude;
+                float dist = diff.sqrMagnitude;
 
                 if (dist < kD2)
                 {
@@ -68,7 +76,72 @@ public class SimulationSPH : MonoBehaviour
             pI.pressure = gasConst * (pI.density - restDensity);
         }
     }
-    
+
+    private void CalculateForces()
+    {
+        foreach (Particle pI in particles)
+        {
+            Vector3 pressureF = Vector3.zero;
+            Vector3 viscF = Vector3.zero;
+            foreach (Particle pJ in particles)
+            {
+                if (pI == pJ) continue;
+                Vector3 diff = pJ.position - pI.position;
+                float dist = diff.magnitude;
+
+                if (dist < kernelDistance)
+                {
+                    pressureF += -diff.normalized * mass * (pI.pressure + pJ.pressure) / (2.0f * pJ.density) *
+                                 SPIKY_GRAD * Mathf.Pow(kernelDistance - dist, 3.0f);
+
+                    viscF += VISC_LAP * mass * (pJ.velocity - pI.velocity) / pJ.density * VISC_LAP *
+                             (kernelDistance - dist);
+                }
+            }
+
+            Vector3 gravF = _gravity * gravityMult * pI.density;
+            pI.forces = pressureF + viscF + gravF;
+        }
+    }
+
+    private void CalculateCollisions()
+    {
+        foreach (Particle pI in particles)
+        {
+            foreach (Particle pJ in particles)
+            {
+                Vector3 penetrationNormal = Vector3.zero;
+                Vector3 penetrationPosition = Vector3.zero;
+                float penetrationLength = 0.0f;
+                //TODO:
+                if (Collide())
+                {
+                    DampVelocity();
+                }
+            }
+        }
+    }
+    //TODO:
+    private bool Collide()
+    {
+        return true;
+    }
+    //TODO:
+    private void DampVelocity()
+    {
+        
+    }
+
+    private void Integrate()
+    {
+        foreach (Particle p in particles)
+        {
+            p.velocity += TIMESTEP * p.forces / p.density;
+            p.position += TIMESTEP * p.velocity;
+            p.go.transform.position = p.position;
+        }
+    }
+
 
     void Start()
     {
@@ -78,6 +151,8 @@ public class SimulationSPH : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        CalculateDensityPressure();
+        CalculateForces();
+        Integrate();
     }
 }

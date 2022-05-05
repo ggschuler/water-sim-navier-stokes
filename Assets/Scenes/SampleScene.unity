@@ -436,15 +436,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   particlePrefab: {fileID: 8441686676866197694, guid: 9fd688fa386c99546bd98886e6a03faf,
     type: 3}
-  radius: 0.67
+  radius: 2.5
   mass: 1
-  restDensity: 1000
-  viscosity: 0
+  restDensity: 300
+  viscosity: 200
   drag: 0
   gasConst: 2000
   amount: 100
   perRow: 5
-  gravityMult: 2000
+  gravityMult: 100
+  walls: []
 --- !u!4 &1879009531
 Transform:
   m_ObjectHideFlags: 0
